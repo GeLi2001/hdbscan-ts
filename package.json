@@ -1,6 +1,6 @@
 {
   "name": "hdbscan-ts",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "TypeScript implementation of HDBSCAN clustering algorithm",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
