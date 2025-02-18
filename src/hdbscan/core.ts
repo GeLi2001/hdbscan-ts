@@ -41,7 +41,7 @@ export class HDBSCAN {
 
   constructor({
     minClusterSize = 5,
-    minSamples = 5,
+    minSamples = minClusterSize,
     debugMode = false
   }: HDBSCANParams = {}) {
     // Add parameter validation

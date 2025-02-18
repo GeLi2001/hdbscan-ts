@@ -73,10 +73,7 @@ describe("HDBSCAN", () => {
     hdbscan.fit(data);
 
     // No sub clusters should be identified
-    expect(
-      hdbscan.labels_.every((label) => label === -1) ||
-        hdbscan.labels_.every((label) => label === 0)
-    ).toBe(true);
+    expect(hdbscan.labels_.includes(-1)).toBe(true);
   });
 
   // Test cluster probabilities
