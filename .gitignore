@@ -1,0 +1,26 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+*.log
+
+# TypeScript build output
+dist/
+*.tsbuildinfo
+
+# Testing & Coverage
+coverage/
+jest.cache/
+jest.config.js
+
+# VSCode & IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+*.py
