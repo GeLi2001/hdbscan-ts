@@ -19,7 +19,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "density-clustering": "^1.3.0",
     "mathjs": "^12.3.0"
   },
   "devDependencies": {
