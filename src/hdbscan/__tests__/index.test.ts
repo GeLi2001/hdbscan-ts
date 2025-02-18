@@ -136,6 +136,25 @@ describe("HDBSCAN", () => {
     }).toThrow();
   });
 
+  test("should handle patterned data", () => {
+    const data = [
+      [1, 1],
+      [1.1, 1],
+      [1, 1.1],
+      [10, 10],
+      [10.1, 10],
+      [10, 10.1],
+      [9, 11],
+      [11, 9]
+    ];
+
+    const hdbscan = new HDBSCAN({ minClusterSize: 2, debugMode });
+    const labels = hdbscan.fit(data);
+    console.log(labels);
+    expect(labels).toHaveLength(data.length);
+    expect(new Set(labels).size).toBeGreaterThan(1);
+  });
+
   test("should handle big numbers", () => {
     const data = [
       [1, 1],
