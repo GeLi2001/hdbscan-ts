@@ -1,4 +1,4 @@
-import { max } from "mathjs";
+import { distance, max } from "mathjs";
 
 export interface HDBSCANParams {
   debugMode?: boolean;
@@ -11,9 +11,7 @@ export interface HDBSCANParams {
 }
 
 function euclideanDistance(a: number[], b: number[]): number {
-  return Math.sqrt(
-    a.reduce((sum, value, index) => sum + (value - b[index]) ** 2, 0)
-  );
+  return Number(distance(a, b));
 }
 
 interface Cluster {
