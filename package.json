@@ -4,6 +4,7 @@
   "description": "TypeScript implementation of HDBSCAN clustering algorithm",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "author": "Ge Li",
   "scripts": {
     "build": "tsc",
     "test": "jest --config jest.config.js",
