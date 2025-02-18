@@ -143,7 +143,7 @@ describe("HDBSCAN", () => {
     const data = [
       [1, 1],
       [1.1, 1],
-      [1, 1.1], // Clear cluster
+      [1, 1.1],
       [10, 10],
       [11, 10],
       [12, 9],
@@ -158,8 +158,7 @@ describe("HDBSCAN", () => {
     const hdbscan = new HDBSCAN({ minClusterSize: 3, debugMode });
     hdbscan.fit(data);
 
-    console.log(hdbscan.labels_);
-
     expect(hdbscan.labels_).toHaveLength(data.length);
+    expect(new Set(hdbscan.labels_).size).toBeGreaterThan(1);
   });
 });

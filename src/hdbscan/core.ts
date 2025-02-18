@@ -20,8 +20,9 @@ interface Cluster {
   distance: number;
   size: number;
   stability?: number;
-  maxEdgeWeight?: number; // ε_max for the cluster
-  leaveEdgeWeight: number;
+  maxEdgeWeight?: number;
+  birthDistance?: number; // ε_max for the cluster
+  leaveEdgeWeight: number; // ε_min for the cluster
   minReachabilityMap?: Map<number, number>; // ε_min for each point
   leftChild?: Cluster; // Add these to track binary tree structure
   rightChild?: Cluster;
@@ -177,7 +178,8 @@ export class HDBSCAN {
     const rootCluster = this.createCluster(
       allPoints,
       sortedEdges[0][2],
-      sortedEdges
+      sortedEdges,
+      sortedEdges[0][2]
     );
     hierarchy.push(rootCluster);
 
@@ -203,25 +205,38 @@ export class HDBSCAN {
       );
       if (components.length === 2) {
         const [leftPoints, rightPoints] = components;
+        let isLeftCluster = false;
+        let isRightCluster = false;
 
         if (leftPoints.length >= this.minClusterSize) {
+          isLeftCluster = true;
           const leftCluster = this.createCluster(
             leftPoints,
             distance,
-            sortedEdges
+            sortedEdges,
+            sortedEdges[index - 1][2]
           );
           hierarchy.push(leftCluster);
           parentCluster.leftChild = leftCluster;
         }
 
         if (rightPoints.length >= this.minClusterSize) {
+          isRightCluster = true;
           const rightCluster = this.createCluster(
             rightPoints,
             distance,
-            sortedEdges
+            sortedEdges,
+            sortedEdges[index - 1][2]
           );
           hierarchy.push(rightCluster);
           parentCluster.rightChild = rightCluster;
+        }
+        if (
+          (isLeftCluster && !isRightCluster) ||
+          (!isLeftCluster && isRightCluster)
+        ) {
+          console.log("find outliers, discard parent cluster");
+          parentCluster.stability = 0;
         }
       }
     }
@@ -243,7 +258,8 @@ export class HDBSCAN {
   private createCluster(
     points: number[],
     distance: number,
-    sortedEdges: [number, number, number][]
+    sortedEdges: [number, number, number][],
+    birthDistance: number
   ): Cluster {
     const minReachMap = new Map<number, number>();
     let leaveEdgeWeight = 0;
@@ -259,6 +275,7 @@ export class HDBSCAN {
       distance: distance,
       size: points.length,
       maxEdgeWeight: distance,
+      birthDistance: birthDistance,
       minReachabilityMap: minReachMap,
       leaveEdgeWeight
     };
@@ -450,19 +467,21 @@ export class HDBSCAN {
     points: Set<number>
   ): number {
     let stability = 0;
-    const epsilon_max = cluster.maxEdgeWeight!;
+    const epsilon_max = cluster.birthDistance!;
 
     // S(C_i) = Σ (1/ε_min(x_j, C_i) - 1/ε_max(C_i))
-    points.forEach((point) => {
-      const epsilon_min = cluster.minReachabilityMap!.get(point)!;
-      stability += 1 / cluster.leaveEdgeWeight - 1 / epsilon_max;
-    });
+    stability += (1 / cluster.leaveEdgeWeight - 1 / epsilon_max) * points.size;
+    // points.forEach((point) => {
+    //   const epsilon_min = cluster.minReachabilityMap!.get(point)!;
+    //   stability += 1 / cluster.leaveEdgeWeight - 1 / epsilon_max;
+    // });
 
     this.log(`Stability calculation for cluster ${cluster.id}:`, {
       pointsCount: points.size,
       epsilon_max,
       minReachabilities: Array.from(cluster.minReachabilityMap!.entries()),
-      stability
+      stability,
+      birthDistance: cluster.birthDistance
     });
 
     return stability;
