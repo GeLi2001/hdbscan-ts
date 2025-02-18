@@ -1,6 +1,13 @@
 # hdbscan-ts
 
-A TypeScript implementation of the HDBSCAN clustering algorithm.
+A TypeScript implementation of the HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise) clustering algorithm. This implementation is inspired by research in density-based clustering methods, including the work on hybrid approaches to hierarchical density-based cluster selection ([Malzer & Baum, 2019](https://arxiv.org/abs/1911.02282)).
+
+HDBSCAN is particularly effective at:
+
+- Detecting clusters of varying densities
+- Identifying noise points
+- Handling clusters of different shapes
+- Providing cluster membership probabilities
 
 ## Installation
 
