@@ -14,8 +14,16 @@
   "keywords": [
     "clustering",
     "hdbscan",
+    "dbscan",
+    "clusters",
+    "cluster",
     "machine-learning",
-    "typescript"
+    "typescript",
+    "data-science",
+    "ml",
+    "ai",
+    "density",
+    "statistics"
   ],
   "license": "MIT",
   "dependencies": {
