@@ -1,6 +1,6 @@
 {
   "name": "hdbscan-ts",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "TypeScript implementation of HDBSCAN clustering algorithm",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -46,7 +46,11 @@
     "url": "https://github.com/GeLi2001/hdbscan-ts/issues"
   },
   "files": [
-    "dist",
-    "README.md"
+    "dist/hdbscan/core.js",
+    "dist/hdbscan/core.d.ts",
+    "dist/index.js",
+    "dist/index.d.ts",
+    "README.md",
+    "LICENSE"
   ]
 }
