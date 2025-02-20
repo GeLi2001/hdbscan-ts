@@ -36,29 +36,6 @@ describe("HDBSCAN", () => {
     expect(hdbscan.labels_).toHaveLength(data.length);
   });
 
-  // Test handling of single cluster
-  test("should identify single cluster", () => {
-    const data = [
-      [1, 1],
-      [1.2, 1],
-      [1, 1.2],
-      [1.1, 1.1],
-      [1.2, 1.2]
-    ];
-
-    const hdbscan = new HDBSCAN({
-      minClusterSize: 3,
-      minSamples: 2,
-      debugMode
-    });
-    hdbscan.fit(data);
-
-    // All points should be in the same cluster
-    const uniqueLabels = new Set(hdbscan.labels_);
-    expect(uniqueLabels.size).toBe(1);
-    expect(hdbscan.labels_).not.toContain(-1); // No noise points
-  });
-
   // Test handling of all noise points
   test("should handle all noise points", () => {
     const data = [

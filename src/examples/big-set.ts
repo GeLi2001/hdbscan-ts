@@ -45,10 +45,10 @@ function generateBigSet(
 
 const data = generateBigSet(100, 5, 15);
 const hdbscan = new HDBSCAN({
-  minClusterSize: 3,
-  minSamples: 2,
-  debugMode: true
+  minClusterSize: 5,
+  minSamples: 2
 });
 const labels = hdbscan.fit(data);
 
 console.log(labels);
+console.log(labels.filter((l) => l === -1).length);

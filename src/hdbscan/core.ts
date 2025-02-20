@@ -1,5 +1,3 @@
-import { distance, max } from "mathjs";
-
 export interface HDBSCANParams {
   debugMode?: boolean;
   minClusterSize?: number;
@@ -8,10 +6,11 @@ export interface HDBSCANParams {
   metric?: "euclidean";
   algorithm?: "best" | "generic" | "prims";
   leafSize?: number;
+  shouldSkipRootCluster?: boolean;
 }
 
 function euclideanDistance(a: number[], b: number[]): number {
-  return Number(distance(a, b));
+  return a.reduce((acc, curr, index) => acc + (curr - b[index]) ** 2, 0);
 }
 
 interface Cluster {
@@ -39,11 +38,14 @@ export class HDBSCAN {
   private clusterMap: Map<number, Cluster> = new Map();
   private nextClusterId: number = 0;
   private sortedEdges: [number, number, number][] = [];
+  private shouldSkipRootCluster: boolean = true;
+  private mutualReachabilityDistance: number[][] = [];
 
   constructor({
     minClusterSize = 5,
     minSamples = minClusterSize,
-    debugMode = false
+    debugMode = false,
+    shouldSkipRootCluster = true
   }: HDBSCANParams = {}) {
     // Add parameter validation
     if (minClusterSize <= 0) {
@@ -58,6 +60,7 @@ export class HDBSCAN {
     this.labels_ = [];
     this.probabilities_ = [];
     this.debugMode = debugMode;
+    this.shouldSkipRootCluster = shouldSkipRootCluster;
   }
 
   // Step 1: Transform space using mutual reachability distance
@@ -98,7 +101,7 @@ export class HDBSCAN {
         );
       }
     }
-
+    this.mutualReachabilityDistance = distanceMatrix;
     return distanceMatrix;
   }
 
@@ -210,7 +213,7 @@ export class HDBSCAN {
         sortedEdges.slice(index + 1)
       );
 
-      console.log("splitted children: ", components);
+      this.log("splitted children: ", components);
       if (
         components.length > 2 ||
         (components.length < 2 && components.every((c) => c.length === 1))
@@ -233,7 +236,7 @@ export class HDBSCAN {
         const leftCluster = this.createCluster(
           leftPoints,
           distance,
-          sortedEdges,
+          this.sortedEdges,
           sortedEdges[index][2]
         );
         if (leftPoints.length >= this.minClusterSize) {
@@ -247,21 +250,21 @@ export class HDBSCAN {
         const rightCluster = this.createCluster(
           rightPoints,
           distance,
-          sortedEdges,
+          this.sortedEdges,
           sortedEdges[index][2]
         );
         if (rightPoints.length >= this.minClusterSize) {
           isRightCluster = true;
-          hierarchy.push(rightCluster);
           parentCluster.rightChild = rightCluster;
         } else {
           rightCluster.stability = 0;
         }
+        hierarchy.push(rightCluster);
         if (
           (isLeftCluster && !isRightCluster) ||
           (!isLeftCluster && isRightCluster)
         ) {
-          console.log("find outliers, discard parent cluster");
+          this.log("find outliers, discard parent cluster");
           parentCluster.stability = 0;
         }
       }
@@ -296,7 +299,7 @@ export class HDBSCAN {
         minReach = 0;
       }
       minReachMap.set(p, minReach);
-      leaveEdgeWeight = max(leaveEdgeWeight, minReach);
+      leaveEdgeWeight = Math.max(leaveEdgeWeight, minReach);
     });
 
     const cluster: Cluster = {
@@ -424,7 +427,7 @@ export class HDBSCAN {
       const clusterPoints = this.getClusterPoints(cluster);
       let stability = this.calculateClusterStability(cluster, clusterPoints);
 
-      // Find immediate children in hierarchy (including same distance level)
+      // Find all children in hierarchy
       const childClusters = condensedHierarchy.filter(
         (c) =>
           c.id !== cluster.id && // Exclude self
@@ -447,6 +450,7 @@ export class HDBSCAN {
           c,
           this.getClusterPoints(c)
         );
+        c.stability = stability;
         return { id: c.id, stability };
       });
 
@@ -456,20 +460,25 @@ export class HDBSCAN {
       );
 
       this.log("Stability comparison:", {
-        currentCluster: { id: cluster.id, stability },
+        currentCluster: {
+          id: cluster.id,
+          stability,
+          clusterPoints: cluster.children
+        },
         childrenStabilities,
         totalChildrenStability: childrenStability
       });
 
       cluster.stability = stability;
-      if (cluster.id === 0) {
+      if (cluster.id === 0 && this.shouldSkipRootCluster) {
         stability = 0;
         cluster.stability = stability;
       }
 
       if (
-        stability >= childrenStability &&
-        clusterPoints.size >= this.minClusterSize
+        (stability > childrenStability &&
+          clusterPoints.size >= this.minClusterSize) ||
+        childClusters.every((c) => c.children.length < this.minClusterSize)
       ) {
         this.log(
           `Selected cluster ${cluster.id} - better stability than children: ${stability} > ${childrenStability}`
@@ -479,7 +488,12 @@ export class HDBSCAN {
       } else {
         discardedClusters.add(cluster.id);
         this.log(
-          `Processing children of cluster ${cluster.id} - children have better stability`
+          `Processing children of cluster ${cluster.id} - children have better stability`,
+          childClusters.map((c) => ({
+            id: c.id,
+            points: c.children,
+            stability: c.stability
+          }))
         );
         childClusters
           .filter(
@@ -604,6 +618,7 @@ export class HDBSCAN {
         weight: w
       }))
     );
+    this.log("relevantEdges: ", relevantEdges);
 
     const minEdge = relevantEdges.reduce((min, [s, d, w]) => {
       if (s === point || d === point) {
@@ -634,7 +649,7 @@ export class HDBSCAN {
   public fit(data: number[][]): number[] {
     // Step 1: Transform space
     const mutualReachabilityDist = this.computeMutualReachabilityDistance(data);
-
+    this.log("mutualReachabilityDist: ", mutualReachabilityDist);
     // Step 2: Build MST
     const mst = this.buildMinimumSpanningTree(mutualReachabilityDist);
     this.sortedEdges = mst;
@@ -652,7 +667,7 @@ export class HDBSCAN {
 
   private log(...args: any[]) {
     if (this.debugMode) {
-      console.log("[HDBSCAN]", ...args);
+      this.log("[HDBSCAN]", ...args);
     }
   }
 }
