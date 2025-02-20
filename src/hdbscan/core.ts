@@ -38,6 +38,7 @@ export class HDBSCAN {
 
   private clusterMap: Map<number, Cluster> = new Map();
   private nextClusterId: number = 0;
+  private sortedEdges: [number, number, number][] = [];
 
   constructor({
     minClusterSize = 5,
@@ -187,7 +188,7 @@ export class HDBSCAN {
     this.log("sorted edges: ", sortedEdges);
 
     // Process edges in decreasing order to build binary tree
-    for (let index = 1; index < sortedEdges.length; index++) {
+    for (let index = 0; index < sortedEdges.length; index++) {
       this.log("processing edge: ", sortedEdges[index]);
       const [src, dst, distance] = sortedEdges[index];
 
@@ -196,41 +197,65 @@ export class HDBSCAN {
         [src, dst],
         hierarchy
       );
-      if (!parentCluster || parentCluster.leftChild) continue;
+      if (!parentCluster) {
+        throw new Error("parentCluster not found");
+      }
+      // already processed
+      if (parentCluster.leftChild) continue;
 
       // Split cluster into two based on this edge
       const components = this.splitClusterAtEdge(
         parentCluster.children,
-        distance,
-        sortedEdges
+        sortedEdges[index],
+        sortedEdges.slice(index + 1)
       );
+
+      console.log("splitted children: ", components);
+      if (
+        components.length > 2 ||
+        (components.length < 2 && components.every((c) => c.length === 1))
+      ) {
+        this.log("reach leafe cluster");
+      } else if (components.length == 0) {
+        this.log("reach leafe cluster");
+      } else if (components.length == 2) {
+        this.log("successfully split cluster into 2");
+      } else {
+        throw new Error(
+          "splitClusterAtEdge returned less or more than 2 components"
+        );
+      }
+
       if (components.length === 2) {
         const [leftPoints, rightPoints] = components;
         let isLeftCluster = false;
         let isRightCluster = false;
-
+        const leftCluster = this.createCluster(
+          leftPoints,
+          distance,
+          sortedEdges,
+          sortedEdges[index][2]
+        );
         if (leftPoints.length >= this.minClusterSize) {
           isLeftCluster = true;
-          const leftCluster = this.createCluster(
-            leftPoints,
-            distance,
-            sortedEdges,
-            sortedEdges[index - 1][2]
-          );
-          hierarchy.push(leftCluster);
           parentCluster.leftChild = leftCluster;
+        } else {
+          leftCluster.stability = 0;
         }
+        hierarchy.push(leftCluster);
 
+        const rightCluster = this.createCluster(
+          rightPoints,
+          distance,
+          sortedEdges,
+          sortedEdges[index][2]
+        );
         if (rightPoints.length >= this.minClusterSize) {
           isRightCluster = true;
-          const rightCluster = this.createCluster(
-            rightPoints,
-            distance,
-            sortedEdges,
-            sortedEdges[index - 1][2]
-          );
           hierarchy.push(rightCluster);
           parentCluster.rightChild = rightCluster;
+        } else {
+          rightCluster.stability = 0;
         }
         if (
           (isLeftCluster && !isRightCluster) ||
@@ -265,7 +290,11 @@ export class HDBSCAN {
     const minReachMap = new Map<number, number>();
     let leaveEdgeWeight = 0;
     points.forEach((p) => {
-      const minReach = this.getMinReachability(p, points, sortedEdges);
+      let minReach = this.getMinReachability(p, points, sortedEdges);
+      if (minReach === Infinity) {
+        // set it to 0 if we failed to find a reachability for that point
+        minReach = 0;
+      }
       minReachMap.set(p, minReach);
       leaveEdgeWeight = max(leaveEdgeWeight, minReach);
     });
@@ -287,15 +316,23 @@ export class HDBSCAN {
 
   private splitClusterAtEdge(
     points: number[],
-    distance: number,
+    [removed_s, removed_d, distance]: [number, number, number],
     sortedEdges: [number, number, number][]
   ): number[][] {
-    const parent = Array.from(points, (_, i) => i);
-    this.log("split cluster at edge: ", points, distance, sortedEdges);
+    const parent = Array.from(
+      { length: this.sortedEdges.length + 1 },
+      (_, i) => i
+    );
+    this.log(
+      "split cluster at edge: ",
+      points,
+      [removed_s, removed_d, distance],
+      sortedEdges
+    );
     // Only union points connected by edges with weight >= distance
     sortedEdges
       .filter(([, , w]) => w <= distance)
-      .forEach(([s, d]) => {
+      .forEach(([s, d, _]) => {
         if (points.includes(s) && points.includes(d)) {
           const rootX = this.find(s, parent);
           const rootY = this.find(d, parent);
@@ -320,6 +357,9 @@ export class HDBSCAN {
 
   // Helper function for finding root in disjoint set
   private find(x: number, parent: number[]): number {
+    if (x >= parent.length) {
+      throw new Error("find called with x greater than parent array length");
+    }
     if (parent[x] !== x) {
       parent[x] = this.find(parent[x], parent);
     }
@@ -432,7 +472,7 @@ export class HDBSCAN {
         clusterPoints.size >= this.minClusterSize
       ) {
         this.log(
-          `Selected cluster ${cluster.id} - better stability than children`
+          `Selected cluster ${cluster.id} - better stability than children: ${stability} > ${childrenStability}`
         );
         selectedClusters.add(cluster);
         childClusters.map((cc) => discardedClusters.add(cc.id));
@@ -484,9 +524,12 @@ export class HDBSCAN {
     this.log(`Stability calculation for cluster ${cluster.id}:`, {
       pointsCount: points.size,
       epsilon_max,
-      minReachabilities: Array.from(cluster.minReachabilityMap!.entries()),
+      minReachabilities: JSON.stringify(
+        Array.from(cluster.minReachabilityMap!.entries())
+      ),
       stability,
-      birthDistance: cluster.birthDistance
+      birthDistance: cluster.birthDistance,
+      leaveEdgeWeight: cluster.leaveEdgeWeight
     });
 
     return stability;
@@ -594,7 +637,7 @@ export class HDBSCAN {
 
     // Step 2: Build MST
     const mst = this.buildMinimumSpanningTree(mutualReachabilityDist);
-
+    this.sortedEdges = mst;
     // Step 3: Build hierarchy
     const hierarchy = this.buildClusterHierarchy(mst);
 
