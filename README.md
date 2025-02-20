@@ -20,17 +20,20 @@ npm install hdbscan-ts
 ```ts
 import { HDBSCAN } from "hdbscan-ts";
 const data = [
-  [1, 2],
-  [2, 3],
-  [100, 100]
-  // ... more points
+  [1.1, 2.1],
+  [2.1, 1.1],
+  [1.1, 1.1],
+  [0.1, 1.1],
+  [10.1, 11.1],
+  [11.1, 10.1],
+  [10.1, 10.1]
 ];
 const hdbscan = new HDBSCAN({
-  minClusterSize: 3,
-  minSamples: 2
+  minClusterSize: 2
 });
 const labels = hdbscan.fit(data);
 console.log(labels);
+// [0, 0, 0, 0, 1, 1, 1]
 ```
 
 ## API

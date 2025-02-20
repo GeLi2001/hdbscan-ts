@@ -182,7 +182,8 @@ export class HDBSCAN {
       sortedEdges[0][2]
     );
     hierarchy.push(rootCluster);
-
+    // always skip root cluster by default same as scikit-learn
+    rootCluster.stability = 0;
     this.log("sorted edges: ", sortedEdges);
 
     // Process edges in decreasing order to build binary tree
@@ -381,7 +382,7 @@ export class HDBSCAN {
       });
 
       const clusterPoints = this.getClusterPoints(cluster);
-      const stability = this.calculateClusterStability(cluster, clusterPoints);
+      let stability = this.calculateClusterStability(cluster, clusterPoints);
 
       // Find immediate children in hierarchy (including same distance level)
       const childClusters = condensedHierarchy.filter(
@@ -421,6 +422,10 @@ export class HDBSCAN {
       });
 
       cluster.stability = stability;
+      if (cluster.id === 0) {
+        stability = 0;
+        cluster.stability = stability;
+      }
 
       if (
         stability >= childrenStability &&

@@ -140,7 +140,7 @@ describe("HDBSCAN", () => {
     const hdbscan = new HDBSCAN({ minClusterSize: 2, debugMode });
     const data = [
       // [1.1, 2.1],
-      [1, 2.1],
+      [1.1, 2.1],
       [2.1, 1.1],
       [1.1, 1.1],
       [0.1, 1.1],
