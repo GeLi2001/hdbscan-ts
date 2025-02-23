@@ -667,7 +667,7 @@ export class HDBSCAN {
 
   private log(...args: any[]) {
     if (this.debugMode) {
-      this.log("[HDBSCAN]", ...args);
+      console.log("[HDBSCAN]", ...args);
     }
   }
 }
