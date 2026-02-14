@@ -7,6 +7,7 @@
   "author": "Ge Li",
   "scripts": {
     "build": "tsc",
+    "bench": "ts-node bench/perf.ts",
     "test": "jest --config jest.config.js",
     "prepare": "npm run build",
     "start": "ts-node src/example.ts"

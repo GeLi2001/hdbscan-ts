@@ -45,7 +45,7 @@ export class HDBSCAN {
     minClusterSize = 5,
     minSamples = minClusterSize,
     debugMode = false,
-    shouldSkipRootCluster = true
+    shouldSkipRootCluster = true,
   }: HDBSCANParams = {}) {
     // Add parameter validation
     if (minClusterSize <= 0) {
@@ -78,7 +78,7 @@ export class HDBSCAN {
         if (i !== j) {
           pointDistances.push({
             index: j,
-            distance: euclideanDistance(data[i], data[j])
+            distance: euclideanDistance(data[i], data[j]),
           });
         }
       }
@@ -97,7 +97,7 @@ export class HDBSCAN {
         distanceMatrix[i][j] = Math.max(
           directDistance,
           coreDistances[i],
-          coreDistances[j]
+          coreDistances[j],
         );
       }
     }
@@ -107,7 +107,7 @@ export class HDBSCAN {
 
   // Step 2: Build minimum spanning tree
   private buildMinimumSpanningTree(
-    distances: number[][]
+    distances: number[][],
   ): [number, number, number][] {
     const n = distances.length;
     // edges defined as [source, destination, weight]
@@ -172,8 +172,8 @@ export class HDBSCAN {
       sortedEdges.map(([s, d, w]) => ({
         source: s,
         dest: d,
-        weight: w
-      }))
+        weight: w,
+      })),
     );
 
     const allPoints = Array.from({ length: n }, (_, i) => i);
@@ -183,7 +183,7 @@ export class HDBSCAN {
       allPoints,
       sortedEdges[0][2],
       sortedEdges,
-      sortedEdges[0][2]
+      sortedEdges[0][2],
     );
     hierarchy.push(rootCluster);
     // always skip root cluster by default same as scikit-learn
@@ -198,7 +198,7 @@ export class HDBSCAN {
       // Find current cluster containing these points
       const parentCluster = this.findClusterContainingPoints(
         [src, dst],
-        hierarchy
+        hierarchy,
       );
       if (!parentCluster) {
         throw new Error("parentCluster not found");
@@ -210,7 +210,7 @@ export class HDBSCAN {
       const components = this.splitClusterAtEdge(
         parentCluster.children,
         sortedEdges[index],
-        sortedEdges.slice(index + 1)
+        sortedEdges.slice(index + 1),
       );
 
       this.log("splitted children: ", components);
@@ -225,7 +225,7 @@ export class HDBSCAN {
         this.log("successfully split cluster into 2");
       } else {
         throw new Error(
-          "splitClusterAtEdge returned less or more than 2 components"
+          "splitClusterAtEdge returned less or more than 2 components",
         );
       }
 
@@ -237,7 +237,7 @@ export class HDBSCAN {
           leftPoints,
           distance,
           this.sortedEdges,
-          sortedEdges[index][2]
+          sortedEdges[index][2],
         );
         if (leftPoints.length >= this.minClusterSize) {
           isLeftCluster = true;
@@ -251,7 +251,7 @@ export class HDBSCAN {
           rightPoints,
           distance,
           this.sortedEdges,
-          sortedEdges[index][2]
+          sortedEdges[index][2],
         );
         if (rightPoints.length >= this.minClusterSize) {
           isRightCluster = true;
@@ -277,8 +277,8 @@ export class HDBSCAN {
         size: h.size,
         children: h.children,
         leftChild: h.leftChild?.id,
-        rightChild: h.rightChild?.id
-      }))
+        rightChild: h.rightChild?.id,
+      })),
     );
 
     return hierarchy;
@@ -288,12 +288,13 @@ export class HDBSCAN {
     points: number[],
     distance: number,
     sortedEdges: [number, number, number][],
-    birthDistance: number
+    birthDistance: number,
   ): Cluster {
+    const pointsSet = new Set(points);
     const minReachMap = new Map<number, number>();
     let leaveEdgeWeight = 0;
     points.forEach((p) => {
-      let minReach = this.getMinReachability(p, points, sortedEdges);
+      let minReach = this.getMinReachability(p, pointsSet, sortedEdges);
       if (minReach === Infinity) {
         // set it to 0 if we failed to find a reachability for that point
         minReach = 0;
@@ -310,7 +311,7 @@ export class HDBSCAN {
       maxEdgeWeight: distance,
       birthDistance: birthDistance,
       minReachabilityMap: minReachMap,
-      leaveEdgeWeight
+      leaveEdgeWeight,
     };
 
     this.clusterMap.set(cluster.id, cluster);
@@ -320,23 +321,24 @@ export class HDBSCAN {
   private splitClusterAtEdge(
     points: number[],
     [removed_s, removed_d, distance]: [number, number, number],
-    sortedEdges: [number, number, number][]
+    sortedEdges: [number, number, number][],
   ): number[][] {
+    const pointsSet = new Set(points);
     const parent = Array.from(
       { length: this.sortedEdges.length + 1 },
-      (_, i) => i
+      (_, i) => i,
     );
     this.log(
       "split cluster at edge: ",
       points,
       [removed_s, removed_d, distance],
-      sortedEdges
+      sortedEdges,
     );
     // Only union points connected by edges with weight >= distance
     sortedEdges
       .filter(([, , w]) => w <= distance)
       .forEach(([s, d, _]) => {
-        if (points.includes(s) && points.includes(d)) {
+        if (pointsSet.has(s) && pointsSet.has(d)) {
           const rootX = this.find(s, parent);
           const rootY = this.find(d, parent);
           if (rootX !== rootY) {
@@ -384,8 +386,8 @@ export class HDBSCAN {
         id: c.id,
         pointCount: this.getClusterPoints(c).size,
         size: c.size,
-        minRequired: this.minClusterSize
-      }))
+        minRequired: this.minClusterSize,
+      })),
     );
 
     return condensed;
@@ -394,7 +396,7 @@ export class HDBSCAN {
   // Step 5: Extract stable clusters
   private extractClusters(
     condensedHierarchy: Cluster[],
-    data: number[][]
+    data: number[][],
   ): void {
     this.log("\nStarting cluster extraction:");
     this.log(
@@ -405,8 +407,8 @@ export class HDBSCAN {
         distance: c.distance,
         children: c.children,
         maxEdgeWeight: c.maxEdgeWeight,
-        minReachabilities: Array.from(c.minReachabilityMap!.entries())
-      }))
+        minReachabilities: Array.from(c.minReachabilityMap!.entries()),
+      })),
     );
 
     const selectedClusters = new Set<Cluster>();
@@ -421,7 +423,7 @@ export class HDBSCAN {
         children: cluster.children,
         distance: cluster.distance,
         maxEdgeWeight: cluster.maxEdgeWeight,
-        discardedClusters: discardedClusters
+        discardedClusters: discardedClusters,
       });
 
       const clusterPoints = this.getClusterPoints(cluster);
@@ -432,7 +434,7 @@ export class HDBSCAN {
         (c) =>
           c.id !== cluster.id && // Exclude self
           c.distance <= cluster.distance && // Include same level
-          c.children.every((p) => cluster.children.includes(p)) // Must be subset
+          c.children.every((p) => cluster.children.includes(p)), // Must be subset
       );
 
       this.log(
@@ -441,14 +443,14 @@ export class HDBSCAN {
           id: c.id,
           children: c.children,
           distance: c.distance,
-          maxEdgeWeight: c.maxEdgeWeight
-        }))
+          maxEdgeWeight: c.maxEdgeWeight,
+        })),
       );
 
       const childrenStabilities = childClusters.map((c) => {
         const stability = this.calculateClusterStability(
           c,
-          this.getClusterPoints(c)
+          this.getClusterPoints(c),
         );
         c.stability = stability;
         return { id: c.id, stability };
@@ -456,17 +458,17 @@ export class HDBSCAN {
 
       const childrenStability = childrenStabilities.reduce(
         (sum, c) => sum + c.stability,
-        0
+        0,
       );
 
       this.log("Stability comparison:", {
         currentCluster: {
           id: cluster.id,
           stability,
-          clusterPoints: cluster.children
+          clusterPoints: cluster.children,
         },
         childrenStabilities,
-        totalChildrenStability: childrenStability
+        totalChildrenStability: childrenStability,
       });
 
       cluster.stability = stability;
@@ -481,7 +483,7 @@ export class HDBSCAN {
         childClusters.every((c) => c.children.length < this.minClusterSize)
       ) {
         this.log(
-          `Selected cluster ${cluster.id} - better stability than children: ${stability} > ${childrenStability}`
+          `Selected cluster ${cluster.id} - better stability than children: ${stability} > ${childrenStability}`,
         );
         selectedClusters.add(cluster);
         childClusters.map((cc) => discardedClusters.add(cc.id));
@@ -492,12 +494,13 @@ export class HDBSCAN {
           childClusters.map((c) => ({
             id: c.id,
             points: c.children,
-            stability: c.stability
-          }))
+            stability: c.stability,
+          })),
         );
         childClusters
           .filter(
-            (c) => c.size >= this.minClusterSize && !discardedClusters.has(c.id)
+            (c) =>
+              c.size >= this.minClusterSize && !discardedClusters.has(c.id),
           )
           .forEach(processCluster);
       }
@@ -514,8 +517,8 @@ export class HDBSCAN {
         size: c.size,
         stability: c.stability,
         children: c.children,
-        maxEdgeWeight: c.maxEdgeWeight
-      }))
+        maxEdgeWeight: c.maxEdgeWeight,
+      })),
     );
 
     this.assignClusterLabels(selectedClusters, data);
@@ -523,7 +526,7 @@ export class HDBSCAN {
 
   private calculateClusterStability(
     cluster: Cluster,
-    points: Set<number>
+    points: Set<number>,
   ): number {
     let stability = 0;
     const epsilon_max = cluster.birthDistance!;
@@ -539,11 +542,11 @@ export class HDBSCAN {
       pointsCount: points.size,
       epsilon_max,
       minReachabilities: JSON.stringify(
-        Array.from(cluster.minReachabilityMap!.entries())
+        Array.from(cluster.minReachabilityMap!.entries()),
       ),
       stability,
       birthDistance: cluster.birthDistance,
-      leaveEdgeWeight: cluster.leaveEdgeWeight
+      leaveEdgeWeight: cluster.leaveEdgeWeight,
     });
 
     return stability;
@@ -551,7 +554,7 @@ export class HDBSCAN {
 
   private assignClusterLabels(
     selectedClusters: Set<Cluster>,
-    data: number[][]
+    data: number[][],
   ): void {
     const n = data.length;
     this.labels_ = new Array(n).fill(-1);
@@ -575,8 +578,8 @@ export class HDBSCAN {
         id: c.id,
         points: Array.from(this.getClusterPoints(c)),
         size: this.getClusterPoints(c).size,
-        minRequired: this.minClusterSize
-      }))
+        minRequired: this.minClusterSize,
+      })),
     });
   }
 
@@ -596,18 +599,20 @@ export class HDBSCAN {
 
   private getMinReachability(
     point: number,
-    clusterPoints: number[],
-    sortedEdges: [number, number, number][]
+    clusterPoints: Set<number>,
+    sortedEdges: [number, number, number][],
   ): number {
     this.log(
-      `\nFinding min reachability for point ${point} in cluster ${clusterPoints}:`
+      `\nFinding min reachability for point ${point} in cluster ${Array.from(
+        clusterPoints,
+      )}:`,
     );
 
     const relevantEdges = sortedEdges.filter(
       ([s, d]) =>
         (s === point || d === point) && // Edge connects to this point
-        clusterPoints.includes(s) &&
-        clusterPoints.includes(d) // Both points in cluster
+        clusterPoints.has(s) &&
+        clusterPoints.has(d), // Both points in cluster
     );
 
     this.log(
@@ -615,8 +620,8 @@ export class HDBSCAN {
       relevantEdges.map(([s, d, w]) => ({
         source: s,
         dest: d,
-        weight: w
-      }))
+        weight: w,
+      })),
     );
     this.log("relevantEdges: ", relevantEdges);
 
@@ -633,7 +638,7 @@ export class HDBSCAN {
 
   private findClusterContainingPoints(
     points: number[],
-    hierarchy: Cluster[]
+    hierarchy: Cluster[],
   ): Cluster | null {
     // Search from newest to oldest clusters to find the smallest containing cluster
     for (let i = hierarchy.length - 1; i >= 0; i--) {
